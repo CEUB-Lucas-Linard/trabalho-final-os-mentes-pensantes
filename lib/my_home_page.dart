@@ -141,7 +141,7 @@ class _FinanceHomePageState extends State<FinanceHomePage> {
                         // Lista de transações
                         Expanded(
                             child: _transactions.isEmpty
-                                ? const Center(child: Text("Nenhuma transação ainda."))
+                                ? const Center(child: Text("Nenhuma transação ainda!"))
                                 : ListView.builder(
                                 itemCount: _transactions.length,
                                 itemBuilder: (ctx, index) {
