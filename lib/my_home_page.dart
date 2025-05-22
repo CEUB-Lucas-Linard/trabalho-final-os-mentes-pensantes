@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 
 class Transaction {
-    final String title;
-    final double amount;
+    String title;
+    double amount;
     final bool isIncome;
 
     Transaction({
@@ -36,7 +36,18 @@ class _FinanceHomePageState extends State<FinanceHomePage> {
                 isIncome: isIncome,
             ));
         });
-        Navigator.of(context).pop(); // fecha o modal
+        Navigator.of(context).pop();
+    }
+
+    void _editTransaction(int index, String title, double amount, bool isIncome) {
+        setState(() {
+            _transactions[index] = Transaction(
+                title: title,
+                amount: amount,
+                isIncome: isIncome,
+            );
+        });
+        Navigator.of(context).pop();
     }
 
     void _openAddTransactionModal() {
@@ -48,6 +59,56 @@ class _FinanceHomePageState extends State<FinanceHomePage> {
             context: context,
             isScrollControlled: true,
             builder: (_) {
+                return _buildTransactionModal(
+                    title: title,
+                    amount: amount,
+                    isIncome: isIncome,
+                    onSave: (title, amount, isIncome) {
+                        final amt = double.tryParse(amount) ?? 0;
+                        if (title.isNotEmpty && amt > 0) {
+                            _addTransaction(title, amt, isIncome);
+                        }
+                    },
+                    isEditing: false,
+                );
+            },
+        );
+    }
+
+    void _openEditTransactionModal(int index) {
+        String title = _transactions[index].title;
+        String amount = _transactions[index].amount.toString();
+        bool isIncome = _transactions[index].isIncome;
+
+        showModalBottomSheet(
+            context: context,
+            isScrollControlled: true,
+            builder: (_) {
+                return _buildTransactionModal(
+                    title: title,
+                    amount: amount,
+                    isIncome: isIncome,
+                    onSave: (title, amount, isIncome) {
+                        final amt = double.tryParse(amount) ?? 0;
+                        if (title.isNotEmpty && amt > 0) {
+                            _editTransaction(index, title, amt, isIncome);
+                        }
+                    },
+                    isEditing: true,
+                );
+            },
+        );
+    }
+
+    Widget _buildTransactionModal({
+        required String title,
+        required String amount,
+        required bool isIncome,
+        required Function(String, String, bool) onSave,
+        required bool isEditing,
+    }) {
+        return StatefulBuilder(
+            builder: (BuildContext context, StateSetter setModalState) {
                 return Padding(
                     padding: EdgeInsets.only(
                         bottom: MediaQuery.of(context).viewInsets.bottom,
@@ -58,14 +119,19 @@ class _FinanceHomePageState extends State<FinanceHomePage> {
                     child: Column(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                            const Text("Adicionar Transação", style: TextStyle(fontSize: 18)),
+                            Text(
+                                isEditing ? "Editar Transação" : "Adicionar Transação",
+                                style: const TextStyle(fontSize: 18),
+                            ),
                             TextField(
                                 decoration: const InputDecoration(labelText: 'Título'),
+                                controller: TextEditingController(text: title),
                                 onChanged: (val) => title = val,
                             ),
                             TextField(
                                 decoration: const InputDecoration(labelText: 'Valor'),
                                 keyboardType: TextInputType.number,
+                                controller: TextEditingController(text: amount),
                                 onChanged: (val) => amount = val,
                             ),
                             Row(
@@ -79,7 +145,9 @@ class _FinanceHomePageState extends State<FinanceHomePage> {
                                         ],
                                         onChanged: (value) {
                                             if (value != null) {
-                                                setState(() => isIncome = value);
+                                                setModalState(() {
+                                                    isIncome = value;
+                                                });
                                             }
                                         },
                                     ),
@@ -87,12 +155,9 @@ class _FinanceHomePageState extends State<FinanceHomePage> {
                             ),
                             ElevatedButton(
                                 onPressed: () {
-                                    final amt = double.tryParse(amount) ?? 0;
-                                    if (title.isNotEmpty && amt > 0) {
-                                        _addTransaction(title, amt, isIncome);
-                                    }
+                                    onSave(title, amount, isIncome);
                                 },
-                                child: const Text("Salvar"),
+                                child: Text(isEditing ? "Atualizar" : "Salvar"),
                             ),
                             const SizedBox(height: 20),
                         ],
@@ -104,32 +169,37 @@ class _FinanceHomePageState extends State<FinanceHomePage> {
 
     @override
     Widget build(BuildContext context) {
+        final isBalanceNegative = totalBalance < 0;
+
         return Scaffold(
             appBar: AppBar(
-                title: const Text("Minhas Finanças"),
-                backgroundColor: Colors.green[700],
+                title: const Text(
+                    "Minhas Finanças",
+                    style: TextStyle(color: Colors.white),
+                ),
+                backgroundColor: const Color(0xFF255F38),
             ),
             body: Padding(
                 padding: const EdgeInsets.all(16.0),
                 child: Column(
                     children: [
-                        // Saldo total
                         Card(
                             elevation: 4,
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                            color: Colors.green[50],
+                            shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(10)),
+                            color: isBalanceNegative ? Colors.red[50] : Colors.green[50],
                             child: Padding(
-                                padding: const EdgeInsets.all(16.0),
+                                padding: const EdgeInsets.all(18.0),
                                 child: Column(
                                     children: [
-                                        const Text("Saldo Total", style: TextStyle(fontSize: 18)),
-                                        const SizedBox(height: 8),
+                                        const Text("Saldo Total", style: TextStyle(fontSize: 24)),
+                                        const SizedBox(height: 8, width: 200),
                                         Text(
                                             "R\$ ${totalBalance.toStringAsFixed(2)}",
-                                            style: const TextStyle(
+                                            style: TextStyle(
                                                 fontSize: 32,
                                                 fontWeight: FontWeight.bold,
-                                                color: Colors.green,
+                                                color: isBalanceNegative ? Colors.red : Colors.green,
                                             ),
                                         ),
                                     ],
@@ -137,8 +207,6 @@ class _FinanceHomePageState extends State<FinanceHomePage> {
                             ),
                         ),
                         const SizedBox(height: 20),
-
-                        // Lista de transações
                         Expanded(
                             child: _transactions.isEmpty
                                 ? const Center(child: Text("Nenhuma transação ainda!"))
@@ -146,18 +214,30 @@ class _FinanceHomePageState extends State<FinanceHomePage> {
                                 itemCount: _transactions.length,
                                 itemBuilder: (ctx, index) {
                                     final tx = _transactions[index];
-                                    return ListTile(
-                                        leading: Icon(
-                                            tx.isIncome ? Icons.arrow_downward : Icons.arrow_upward,
-                                            color: tx.isIncome ? Colors.green : Colors.red,
-                                        ),
-                                        title: Text(tx.title),
-                                        subtitle: Text(tx.isIncome ? "Entrada" : "Saída"),
-                                        trailing: Text(
-                                            "R\$ ${tx.amount.toStringAsFixed(2)}",
-                                            style: TextStyle(
+                                    return Card(
+                                        margin: const EdgeInsets.symmetric(vertical: 4),
+                                        child: ListTile(
+                                            leading: Icon(
+                                                tx.isIncome ? Icons.arrow_downward : Icons.arrow_upward,
                                                 color: tx.isIncome ? Colors.green : Colors.red,
-                                                fontWeight: FontWeight.bold,
+                                            ),
+                                            title: Text(tx.title),
+                                            subtitle: Text(tx.isIncome ? "Entrada" : "Saída"),
+                                            trailing: Row(
+                                                mainAxisSize: MainAxisSize.min,
+                                                children: [
+                                                    Text(
+                                                        "R\$ ${tx.amount.toStringAsFixed(2)}",
+                                                        style: TextStyle(
+                                                            color: tx.isIncome ? Colors.green : Colors.red,
+                                                            fontWeight: FontWeight.bold,
+                                                        ),
+                                                    ),
+                                                    IconButton(
+                                                        icon: const Icon(Icons.edit),
+                                                        onPressed: () => _openEditTransactionModal(index),
+                                                    ),
+                                                ],
                                             ),
                                         ),
                                     );
